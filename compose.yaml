@@ -1,0 +1,67 @@
+# Please refer https://aka.ms/HTTPSinContainer on how to setup an https developer certificate for your ASP.NET Core service.
+
+services:
+  app:
+    build: .
+    environment:
+      PostgresConnection: ${POSTGRES_CONNECTION}
+      SqliteConnnection: ${SQLITE_CONNECTION}
+      MongoConnection: ${MONGO_CONNECTION}
+      MongoDb: ${MONGO_DB}
+    volumes:
+      - ./data:/app/data
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgresql:
+        condition: service_healthy
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -f http://localhost:8080/health || exit 1" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+
+  postgresql:
+    image: postgres:bookworm
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+
+  mongodb:
+    image: mongo:6.0
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD}
+      MONGO_INITDB_DATABASE: ${MONGO_DB}
+    volumes:
+      - mongodata:/data/db
+      - mongoconfig:/data/configdb
+      - ./check-mongo.sh:/usr/local/bin/check-mongo.sh:ro
+    ports:
+      - "27017:27017"
+    healthcheck:
+      test: [ "CMD", "/usr/local/bin/check-mongo.sh" ]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 40s
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  mongodata:
+  mongoconfig:
