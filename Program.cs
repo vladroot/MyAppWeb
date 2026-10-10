@@ -18,9 +18,11 @@ var sqliteConnection = Environment.GetEnvironmentVariable("SqliteConnnection")
     ?? throw new Exception("SqliteConnnection in compose.yaml not set!");
 
 // Add services to the container.
-builder.Services.AddDbContext<AppDbContext>(opt => opt.UseNpgsql(postgresqlConnection));
+builder.Services.AddDbContext<AppDbContext>(opt =>
+{
+    opt.UseNpgsql(postgresqlConnection);
+});
 
-builder.Services.AddScoped<IAppDbContext, AppDbContext>();
 builder.Services.AddScoped<ISaveLoad, SaveLoadController>();
 
 builder.Services.AddSingleton<MongoClient>(sp => new MongoClient(mongoConnectionString));
@@ -45,6 +47,12 @@ foreach (var service in services)
 
 var app = builder.Build();
 
+using (var scope = app.Services.CreateScope())
+{
+    var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    dbContext.Database.Migrate(); // ef already built the model and OnModelCreating is done.
+}
+
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
@@ -64,7 +72,7 @@ app.MapGet("/watch", () =>
         return ["Nothing here yet"];
     return srvMessages;
 })
-.WithName("GetWeatherForecast");
+.WithName("GetWatch");
 
 app.MapGet("/json", (ISaveLoad saveLoad) =>
 {
@@ -72,6 +80,60 @@ app.MapGet("/json", (ISaveLoad saveLoad) =>
     srvMessages.Add(json);
     return json;
 }).WithName("GetJson");
+
+app.MapPost("/addproduct", async (HttpContext context, AppDbContext appDbContext) =>
+{
+    Product product = new() { Name = "TestProduct", Price = 10, Stock = 20 };
+    appDbContext.Products?.Add(product);
+    int result = await appDbContext.SaveChangesAsync();
+
+    if (result == 1)
+    {
+        var response = new
+        {
+            status = "success",
+            message = "added new product",
+            timestamp = DateTime.UtcNow
+        };
+        srvMessages.Add(JsonSerializer.Serialize(response));
+        return Results.Created($"/products/{product.Id}", response);
+    }
+    else
+    {
+        var response = new
+        {
+            status = "failed",
+            error = "Could not add new product!",
+            timestamp = DateTime.UtcNow
+        };
+        srvMessages.Add(JsonSerializer.Serialize(response));
+        return Results.Json(response, statusCode: 500);
+    }
+}).WithName("AddProduct");
+
+app.MapGet("/getproducts", async (HttpContext context, AppDbContext appDbContext) =>
+{
+    string text;
+    var listOfProducts = appDbContext.Products?.OrderBy(product => product.Name);
+    if (listOfProducts == null || listOfProducts.Count() == 0)
+    {
+        var response = new
+        {
+            status = "success",
+            message = "no products yet",
+            timestamp = DateTime.UtcNow
+        };
+        context.Response.ContentType = "application/json";
+        text = JsonSerializer.Serialize(response);
+    }
+    else
+    {
+        context.Response.ContentType = "application/json";
+        text = JsonSerializer.Serialize(listOfProducts);
+    }
+    srvMessages.Add(text);
+    await context.Response.WriteAsync(text);
+}).WithName("GetProducts");
 
 app.MapGet("/health", async context =>
 {

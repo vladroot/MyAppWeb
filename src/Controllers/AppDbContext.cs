@@ -1,19 +1,25 @@
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Infrastructure;
 
 namespace MyAppWeb
 {
-    public class AppDbContext : DbContext, IAppDbContext
+    public class AppDbContext : DbContext
     {
         public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
-        public DbSet<Product> Products => Set<Product>();
-        DbSet<Product> IAppDbContext.Products { get => Products; set => Set<Product>(); }
-    }
+        public DbSet<Product>? Products { get; set; }
+        public DbSet<User>? Users { get; set; }
 
-    internal interface IAppDbContext
-    {
-        DbSet<Product> Products { get; set; }
-        Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
-        DatabaseFacade Database { get; }
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            modelBuilder.Entity<Product>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).UseIdentityColumn();
+            });
+            modelBuilder.Entity<User>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.Property(e => e.Id).UseIdentityColumn();
+            });
+        }
     }
 }

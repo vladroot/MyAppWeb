@@ -5,7 +5,7 @@ namespace MyAppWeb
     public interface IUserRepository
     {
         Task<List<User>> GetAllAsync();
-        Task<User?> GetByIdAsync(string id);
+        Task<User?> GetByUniqueAsync(string unique);
         Task InsertOneAsync(User user);
     }
 
@@ -23,9 +23,9 @@ namespace MyAppWeb
             return await _usersCollection.Find(_ => true).ToListAsync();
         }
 
-        public async Task<User?> GetByIdAsync(string id)
+        public async Task<User?> GetByUniqueAsync(string unique)
         {
-            var filter = Builders<User>.Filter.Eq(u => u.Id, id);
+            var filter = Builders<User>.Filter.Eq(u => u.Unique, unique);
             return await _usersCollection.Find(filter).FirstOrDefaultAsync();
         }
 
