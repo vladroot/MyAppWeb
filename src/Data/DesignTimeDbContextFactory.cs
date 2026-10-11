@@ -1,10 +1,13 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
+using MyAppWeb.Configuration;
 
 namespace MyAppWeb;
 
 public class DesignTimeDbContextFactory : IDesignTimeDbContextFactory<AppDbContext>
 {
+    private const string PostgresConnectionKey = "POSTGRES_CONNECTION";
+
     public AppDbContext CreateDbContext(string[] args)
     {
         var envPath = Path.Combine(Directory.GetCurrentDirectory(), ".env");
@@ -13,29 +16,10 @@ public class DesignTimeDbContextFactory : IDesignTimeDbContextFactory<AppDbConte
             throw new FileNotFoundException(
                 ".env not found. Ma sure file exists in project root folder.", envPath);
 
-        string? connectionString = null;
-
-        foreach (var line in File.ReadAllLines(envPath))
-        {
-            if (string.IsNullOrWhiteSpace(line) || line.StartsWith("#"))
-                continue;
-
-            var eqIndex = line.IndexOf('=');
-            if (eqIndex < 0)
-                continue;
-
-            var key = line[..eqIndex].Trim();
-            var value = line[(eqIndex + 1)..].Trim().Trim('"');
-
-            if (key == "POSTGRES_CONNECTION")
-            {
-                connectionString = value;
-                break;
-            }
-        }
+        string? connectionString = EnvFile.GetValue(envPath, PostgresConnectionKey);
 
         if (string.IsNullOrEmpty(connectionString))
-            throw new InvalidOperationException("POSTGRES_CONNECTION not found in .env!");
+            throw new InvalidOperationException($"{PostgresConnectionKey} not found in .env!");
 
         var optionsBuilder = new DbContextOptionsBuilder<AppDbContext>();
         optionsBuilder.UseNpgsql(connectionString);

@@ -1,6 +1,33 @@
-@MyAppWeb_HostAddress = http://localhost:5177
+@MyAppWeb_HostAddress = http://localhost:8080
 
-GET {{MyAppWeb_HostAddress}}/weatherforecast/
+### Message log served by /watch
+GET {{MyAppWeb_HostAddress}}/watch
+Accept: application/json
+
+### Round-trips a save/load object through JSON
+GET {{MyAppWeb_HostAddress}}/json
+Accept: application/json
+
+### Seeds a test product
+POST {{MyAppWeb_HostAddress}}/addproduct
+Accept: application/json
+
+### Lists the stored products
+GET {{MyAppWeb_HostAddress}}/getproducts
+Accept: application/json
+
+### Health probe used by the compose healthcheck
+GET {{MyAppWeb_HostAddress}}/health
+Accept: application/json
+
+### Datastore version probes
+GET {{MyAppWeb_HostAddress}}/postgres
 Accept: application/json
 
 ###
+GET {{MyAppWeb_HostAddress}}/mongo
+Accept: application/json
+
+###
+GET {{MyAppWeb_HostAddress}}/sqlite
+Accept: application/json
