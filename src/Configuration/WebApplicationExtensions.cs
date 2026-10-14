@@ -32,6 +32,14 @@ public static class WebApplicationExtensions
 
     public static WebApplication UseApplicationPipeline(this WebApplication app)
     {
+        var databases = app.Services.GetRequiredService<DatabaseOptions>();
+        if (!databases.IsRedisConfigured)
+        {
+            app.Logger.LogWarning(
+                "{RedisConnectionKey} is not set — using the in-memory IDistributedCache. Product caching will not survive a restart nor be shared across instances.",
+                DatabaseOptions.RedisConnectionKey);
+        }
+
         // Configure the HTTP request pipeline.
         if (app.Environment.IsDevelopment())
             app.MapOpenApi();

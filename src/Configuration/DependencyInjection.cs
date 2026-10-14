@@ -35,6 +35,22 @@ public static class DependencyInjection
         });
         services.AddScoped<IUserRepository, UserRepository>();
 
+        // IDistributedCache used by /getproducts. Redis is the intended backend; without a
+        // connection string we fall back to the in-memory implementation so a local run
+        // without Redis still serves requests instead of failing on every cache call.
+        if (databases.IsRedisConfigured)
+        {
+            services.AddStackExchangeRedisCache(opt =>
+            {
+                opt.Configuration = databases.RedisConnection;
+                opt.InstanceName = DatabaseOptions.RedisInstanceName;
+            });
+        }
+        else
+        {
+            services.AddDistributedMemoryCache();
+        }
+
         services.AddSingleton<IMessageLog, ServerMessageLog>();
 
         services.AddOpenApi();
@@ -68,7 +84,9 @@ public static class DependencyInjection
             MongoDb = Required(Read(DatabaseOptions.MongoDbKey), DatabaseOptions.MongoDbKey),
             SqliteConnection = Required(
                 Read(DatabaseOptions.SqliteConnectionKey) ?? Read(DatabaseOptions.LegacySqliteConnectionKey),
-                DatabaseOptions.LegacySqliteConnectionKey)
+                DatabaseOptions.LegacySqliteConnectionKey),
+            // Optional: unlike the datastores above, a missing Redis only disables Redis caching.
+            RedisConnection = Read(DatabaseOptions.RedisConnectionKey) ?? string.Empty
         };
 
         static string Required(string? value, string key)

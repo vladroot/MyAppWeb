@@ -8,12 +8,15 @@ services:
       SqliteConnnection: ${SQLITE_CONNECTION}
       MongoConnection: ${MONGO_CONNECTION}
       MongoDb: ${MONGO_DB}
+      RedisConnection: ${REDIS_CONNECTION}
     volumes:
       - ./data:/app/data
     ports:
       - "8080:8080"
     depends_on:
       postgresql:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     healthcheck:
       test: [ "CMD-SHELL", "curl -f http://localhost:8080/health || exit 1" ]
@@ -61,7 +64,30 @@ services:
       start_period: 40s
     restart: unless-stopped
 
+  # Cache behind IDistributedCache (used by GET /getproducts). The password lives in .env
+  # and is passed to the container as an environment variable, never as a command-line flag
+  # on the compose level, so `docker inspect` shows no interpolated secret in the command.
+  redis:
+    image: redis:8-alpine
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    # sh -c is required: the exec form would pass the literal "$REDIS_PASSWORD" to
+    # redis-server instead of expanding it, while the healthcheck (a shell) would expand it.
+    command: [ "sh", "-c", "exec redis-server --requirepass \"$$REDIS_PASSWORD\" --appendonly yes" ]
+    volumes:
+      - redisdata:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: [ "CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" ping | grep -q PONG" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
 volumes:
   pgdata:
   mongodata:
   mongoconfig:
+  redisdata:

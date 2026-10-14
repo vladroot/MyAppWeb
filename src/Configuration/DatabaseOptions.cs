@@ -12,6 +12,15 @@ public class DatabaseOptions
     public const string SqliteConnectionKey = "SqliteConnection";
 
     /// <summary>
+    /// Optional fourth datastore. When it is empty the app falls back to an in-memory
+    /// <c>IDistributedCache</c>, so the endpoints keep working without a Redis instance.
+    /// </summary>
+    public const string RedisConnectionKey = "RedisConnection";
+
+    /// <summary>Key prefix shared by every cached entry (set as the Redis instance name).</summary>
+    public const string RedisInstanceName = "MyAppWeb:";
+
+    /// <summary>
     /// compose.yaml ships this key misspelled with three n's; we accept both spellings.
     /// </summary>
     public const string LegacySqliteConnectionKey = "SqliteConnnection";
@@ -26,6 +35,16 @@ public class DatabaseOptions
     public string MongoConnection { get; init; } = string.Empty;
     public string MongoDb { get; init; } = string.Empty;
     public string SqliteConnection { get; init; } = string.Empty;
+
+    /// <summary>
+    /// StackExchange.Redis configuration, e.g. <c>redis:6379,password=...,abortConnect=false</c>.
+    /// Deliberately not part of <see cref="Validate"/>/<see cref="MissingKeys"/>: Redis is a
+    /// cache, not a system of record, so a missing entry must not make /health report unhealthy.
+    /// </summary>
+    public string RedisConnection { get; init; } = string.Empty;
+
+    /// <summary>True when caching is backed by Redis instead of the in-memory fallback.</summary>
+    public bool IsRedisConfigured => !string.IsNullOrWhiteSpace(RedisConnection);
 
     /// <summary>The names of every connection setting that is not configured.</summary>
     public IReadOnlyList<string> MissingKeys =>
